@@ -3,6 +3,7 @@
  * following copyright and licenses apply:
  *
  * Copyright 2023 Comcast Cable Communications Management, LLC.
+ * Copyright 2025 CoreFrame.work
  *
  * Licensed under the Apache License, Version 2.0 (the License);
  * you may not use this file except in compliance with the License.
@@ -613,7 +614,7 @@ export class SdfTextRenderer extends TextRenderer<SdfTextRendererState> {
     const renderer = this.stage.renderer;
     assertTruthy(renderer instanceof WebGlRenderer);
 
-    const { fontSize, color, contain, scrollable, zIndex, debug } = state.props;
+    const { fontSize, color, contain, scrollable, debug } = state.props;
 
     // scrollY only has an effect when contain === 'both' and scrollable === true
     const scrollY = contain === 'both' && scrollable ? state.props.scrollY : 0;

@@ -3,6 +3,7 @@
  * following copyright and licenses apply:
  *
  * Copyright 2023 Comcast Cable Communications Management, LLC.
+ * Copyright 2025 CoreFrame.work
  *
  * Licensed under the Apache License, Version 2.0 (the License);
  * you may not use this file except in compliance with the License.
@@ -116,20 +117,11 @@ export enum UpdateType {
   Clipping = 16,
 
   /**
-   * Calculated ZIndex update
-   *
-   * @remarks
-   * CoreNode Properties Updated:
-   * - `calcZIndex`
-   */
-  CalculatedZIndex = 32,
-
-  /**
    * Z-Index Sorted Children update
    *
    * @remarks
    * CoreNode Properties Updated:
-   * - `children` (sorts children by their `calcZIndex`)
+   * - `children` (sorts children by their `zIndex`)
    */
   ZIndexSortedChildren = 64,
 
@@ -397,9 +389,8 @@ export interface CoreNodeProps {
    * The Node's z-index.
    *
    * @remarks
-   * TBD
    */
-  zIndex: number;
+  zIndex: number | null;
   /**
    * The Node's Texture.
    *
@@ -454,7 +445,7 @@ export interface CoreNodeProps {
    * settings being defaults)
    */
   src: string | null;
-  zIndexLocked: number;
+
   /**
    * Scale to render the Node at
    *
@@ -752,7 +743,6 @@ export class CoreNode extends EventEmitter {
   public premultipliedColorTr = 0;
   public premultipliedColorBl = 0;
   public premultipliedColorBr = 0;
-  public calcZIndex = 0;
   public hasRTTupdates = false;
   public parentHasRenderTexture = false;
   public rttParent: CoreNode | null = null;
@@ -760,6 +750,7 @@ export class CoreNode extends EventEmitter {
    * only used when rtt = true
    */
   public framebufferDimensions: Dimensions | null = null;
+  public zIndexedChildrenCount = 0;
 
   constructor(readonly stage: Stage, props: CoreNodeProps) {
     super();
@@ -943,9 +934,27 @@ export class CoreNode extends EventEmitter {
     }
   }
 
-  sortChildren() {
-    this.children.sort((a, b) => a.calcZIndex - b.calcZIndex);
+  sortChildren(): void {
+    if (this.zIndexedChildrenCount === 0) return;
+
+    this.children.sort(this.zIndexSortWithNullLast);
   }
+
+  zIndexSortWithNullLast(a: CoreNode, b: CoreNode): number {
+    const za = a.zIndex;
+    const zb = b.zIndex;
+
+    if (za === null) {
+       // node without zIndex comes last
+      return zb === null ? 0 : -1;
+    } else if (zb === null) {
+      // node without zIndex comes last
+      return 1;
+    } else {
+      // both defined ??? normal ascending
+      return za - zb;
+    }
+  };
 
   updateScaleRotateTransform() {
     const { rotation, scaleX, scaleY } = this.props;
@@ -1185,13 +1194,6 @@ export class CoreNode extends EventEmitter {
       }
     }
 
-    // No need to update zIndex if there is no parent
-    if (parent !== null && this.updateType & UpdateType.CalculatedZIndex) {
-      this.calculateZIndex();
-      // Tell parent to re-sort children
-      parent.setUpdateType(UpdateType.ZIndexSortedChildren);
-    }
-
     if (
       this.props.strictBounds === true &&
       this.renderState === CoreNodeRenderState.OutOfBounds
@@ -1240,9 +1242,11 @@ export class CoreNode extends EventEmitter {
       this.notifyParentRTTOfUpdate();
     }
 
-    // Sorting children MUST happen after children have been updated so
-    // that they have the oppotunity to update their calculated zIndex.
-    if (this.updateType & UpdateType.ZIndexSortedChildren) {
+    // Only sort children if we have z-indexed children
+    if (
+      this.updateType & UpdateType.ZIndexSortedChildren &&
+      this.zIndexedChildrenCount > 0
+    ) {
       // reorder z-index
       this.sortChildren();
     }
@@ -1671,18 +1675,6 @@ export class CoreNode extends EventEmitter {
     }
   }
 
-  calculateZIndex(): void {
-    const props = this.props;
-    const z = props.zIndex || 0;
-    const p = props.parent?.zIndex || 0;
-
-    let zIndex = z;
-    if (props.parent?.zIndexLocked) {
-      zIndex = z < p ? z : p;
-    }
-    this.calcZIndex = zIndex;
-  }
-
   /**
    * Destroy the node and cleanup all resources
    */
@@ -1745,7 +1737,6 @@ export class CoreNode extends EventEmitter {
       texture: this.texture || this.stage.defaultTexture,
       textureOptions: this.textureOptions,
       textureCoords: this.textureCoords,
-      zIndex: this.zIndex,
       shader: this.props.shader as CoreShaderNode<any>,
       alpha: this.worldAlpha,
       clippingRect: this.clippingRect,
@@ -2136,30 +2127,33 @@ export class CoreNode extends EventEmitter {
     this.setUpdateType(UpdateType.PremultipliedColors);
   }
 
-  // we're only interested in parent zIndex to test
-  // if we should use node zIndex is higher then parent zIndex
-  get zIndexLocked(): number {
-    return this.props.zIndexLocked || 0;
-  }
-
-  set zIndexLocked(value: number) {
-    this.props.zIndexLocked = value;
-    this.setUpdateType(UpdateType.CalculatedZIndex | UpdateType.Children);
-    for (let i = 0, length = this.children.length; i < length; i++) {
-      this.children[i]!.setUpdateType(UpdateType.CalculatedZIndex);
-    }
-  }
-
-  get zIndex(): number {
+  get zIndex(): number | null {
     return this.props.zIndex;
   }
 
   set zIndex(value: number) {
+    const prev = this.props.zIndex;
+    if (prev === value) return;
+
     this.props.zIndex = value;
-    this.setUpdateType(UpdateType.CalculatedZIndex | UpdateType.Children);
-    for (let i = 0, length = this.children.length; i < length; i++) {
-      this.children[i]!.setUpdateType(UpdateType.CalculatedZIndex);
+
+    const parent = this.parent;
+    if (parent === null) return;
+
+    if (prev === null) {
+      // If we are adding a z-index, increment the parent's count
+      if (value !== null) {
+        parent.zIndexedChildrenCount++;
+      }
+    } else {
+      // If we are removing a z-index, decrement the parent's count
+      if (value === null) {
+        parent.zIndexedChildrenCount--;
+      }
     }
+
+    // If the parent has z-indexed children, sort them
+    parent.setUpdateType(UpdateType.ZIndexSortedChildren);
   }
 
   get parent(): CoreNode | null {
@@ -2168,9 +2162,8 @@ export class CoreNode extends EventEmitter {
 
   set parent(newParent: CoreNode | null) {
     const oldParent = this.props.parent;
-    if (oldParent === newParent) {
-      return;
-    }
+    if (oldParent === newParent) return;
+
     this.props.parent = newParent;
     if (oldParent) {
       const index = oldParent.children.indexOf(this);
@@ -2178,6 +2171,11 @@ export class CoreNode extends EventEmitter {
       oldParent.setUpdateType(
         UpdateType.Children | UpdateType.ZIndexSortedChildren,
       );
+
+      // If we had a z-index, remove it from the parent's count
+      if (this.props.zIndex !== null) {
+        oldParent.zIndexedChildrenCount--;
+      }
     }
     if (newParent) {
       newParent.children.push(this);
@@ -2187,6 +2185,11 @@ export class CoreNode extends EventEmitter {
       newParent.setUpdateType(
         UpdateType.Children | UpdateType.ZIndexSortedChildren,
       );
+
+      // If this node has a z-index, increment the parent's count
+      if (this.props.zIndex !== null) {
+        newParent.zIndexedChildrenCount++;
+      }
 
       // If the new parent has an RTT enabled, apply RTT inheritance
       if (newParent.rtt || newParent.parentHasRenderTexture) {
@@ -2464,6 +2467,61 @@ export class CoreNode extends EventEmitter {
   flush() {
     // no-op
   }
+
+  /**
+   * Insert a child node, optionally at a specific index.
+   * ?????? Does not clamp or validate index. Caller must ensure valid value.
+   * This is done for performance reasons, to avoid branching in the hot path.
+   *
+   * @param c CoreNode - The child node to insert.
+   * @param i Index - The index at which to insert the child. If not provided, the child will be added to the end.
+   */
+  insertChild(c: CoreNode, i?: number): void {
+    const a = this.children;
+    const l = a.length;
+
+    if (i === undefined || i >= l) {
+      a[l] = c;
+    } else {
+      for (let j = l; j > i; j--) a[j] = a[j - 1]!;
+      a[i] = c;
+    }
+
+    c.props.parent = this;
+
+    if (c.props.zIndex !== null) {
+      this.zIndexedChildrenCount++;
+    }
+
+    this.setUpdateType(UpdateType.Children | UpdateType.ZIndexSortedChildren);
+  }
+
+  /**
+   * Remove a child node at a specific index.
+   * ?????? Assumes `index >= 0 && index < children.length`. No bounds checking is performed.
+   * This is done for performance reasons, to avoid branching in the hot path.
+   *
+   * @param i Index - The index of the child node to remove.
+   */
+  removeChildAt(i: number): void {
+    const a = this.children;
+    const l = a.length;
+
+    const c = a[i];
+    if (!c) return;
+
+    for (let j = i; j < l - 1; j++) a[j] = a[j + 1]!;
+    a.length = l - 1;
+
+    c.props.parent = null;
+    if (c.props.zIndex !== null) {
+      this.zIndexedChildrenCount--;
+    }
+
+    this.setUpdateType(UpdateType.Children | UpdateType.ZIndexSortedChildren);
+  }
+
+
 
   //#endregion Properties
 }

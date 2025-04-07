@@ -3,6 +3,7 @@
  * following copyright and licenses apply:
  *
  * Copyright 2024 Comcast Cable Communications Management, LLC.
+ * Copyright 2025 CoreFrame.work
  *
  * Licensed under the Apache License, Version 2.0 (the License);
  * you may not use this file except in compliance with the License.
@@ -45,12 +46,14 @@ import type { CoreShaderNode } from '../core/renderers/CoreShaderNode.js';
  * instead of CoreNode objects.
  */
 export interface INode<ShaderNode extends CoreShaderNode = CoreShaderNode>
-  extends Omit<CoreNode, 'shader' | 'animate' | 'parent'> {
+  extends Omit<CoreNode, 'shader' | 'animate' | 'parent' | 'insertChild'> {
   shader: ShaderNode;
   animate(
     props: Partial<INodeAnimateProps<ShaderNode>>,
     settings: Partial<AnimationSettings>,
   ): IAnimationController;
+  insertChild(c: INode, i?: number): void
+  removeChildAt(index: number): void;
   parent: INode | null;
 }
 

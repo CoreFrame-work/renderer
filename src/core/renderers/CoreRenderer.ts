@@ -3,6 +3,7 @@
  * following copyright and licenses apply:
  *
  * Copyright 2023 Comcast Cable Communications Management, LLC.
+ * Copyright 2025 CoreFrame.work
  *
  * Licensed under the Apache License, Version 2.0 (the License);
  * you may not use this file except in compliance with the License.
@@ -39,7 +40,6 @@ export interface QuadOptions {
   texture: Texture | null;
   textureOptions: TextureOptions | null;
   textureCoords: TextureCoords | undefined;
-  zIndex: number;
   shader: CoreShaderNode | null;
   alpha: number;
   clippingRect: RectWithValid;

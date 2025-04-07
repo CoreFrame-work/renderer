@@ -3,6 +3,7 @@
  * following copyright and licenses apply:
  *
  * Copyright 2023 Comcast Cable Communications Management, LLC.
+ * Copyright 2025 CoreFrame.work
  *
  * Licensed under the Apache License, Version 2.0 (the License);
  * you may not use this file except in compliance with the License.
@@ -272,8 +273,7 @@ export class Stage {
       colorTr: 0x00000000,
       colorBl: 0x00000000,
       colorBr: 0x00000000,
-      zIndex: 0,
-      zIndexLocked: 0,
+      zIndex: null,
       scaleX: 1,
       scaleY: 1,
       mountX: 0,
@@ -699,8 +699,7 @@ export class Stage {
       colorBr,
       colorTl,
       colorTr,
-      zIndex: props.zIndex ?? 0,
-      zIndexLocked: props.zIndexLocked ?? 0,
+      zIndex: props.zIndex ?? null,
       parent: props.parent ?? null,
       texture: props.texture ?? null,
       textureOptions: props.textureOptions ?? {},

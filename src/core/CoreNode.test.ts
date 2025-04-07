@@ -3,6 +3,7 @@
  * following copyright and licenses apply:
  *
  * Copyright 2023 Comcast Cable Communications Management, LLC.
+ * Copyright 2025 CoreFrame.work
  *
  * Licensed under the Apache License, Version 2.0 (the License);
  * you may not use this file except in compliance with the License.
@@ -61,7 +62,6 @@ describe('set color()', () => {
     x: 0,
     y: 0,
     zIndex: 0,
-    zIndexLocked: 0,
     strictBounds: false,
   };
 

@@ -3,6 +3,7 @@
  * following copyright and licenses apply:
  *
  * Copyright 2023 Comcast Cable Communications Management, LLC.
+ * Copyright 2025 CoreFrame.work
  *
  * Licensed under the Apache License, Version 2.0 (the License);
  * you may not use this file except in compliance with the License.
@@ -332,8 +333,6 @@ export interface TrProps extends TrFontProps {
    */
   wordBreak: 'normal' | 'break-all' | 'break-word';
 
-  zIndex: number;
-
   debug: Partial<TextRendererDebugProps>;
 }
 
@@ -356,9 +355,6 @@ const trPropSetterDefaults: TrPropSetters = {
   },
   color: (state, value) => {
     state.props.color = value;
-  },
-  zIndex: (state, value) => {
-    state.props.zIndex = value;
   },
   fontFamily: (state, value) => {
     state.props.fontFamily = value;
